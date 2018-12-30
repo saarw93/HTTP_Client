@@ -1,6 +1,7 @@
-//
-// Created by saar on 12/17/18.
-//
+/**Author: Saar Weitzman
+ * Date: 30.12.18
+ * HTTP Client implementation
+ * **/
 
 #include <stdio.h>
 #include <unistd.h>
