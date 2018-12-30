@@ -23,16 +23,19 @@ a GET request and a POST request.
 
 
 --------Installation/Compilation of the program---------
+
 open linux terminal, navigate to the folder containing "ex2" folder using the "cd" command (confirm it by using ls command)
 type in the terminal: gcc -Wall –o client client.c .
 
 
 -----------Activation of the program--------------------
+
 open linux terminal, navigate to tester executeable file location using "cd" command (confirm it using ls command) 
 and type: ./client . To run the program with valgrind, type: valgrind ./client .
 
 
 ----------program functions and their output---------------
+
 int check_if_post(char* str);
 output: returns 1 if 'str' input is a post, if not, returns -1.
 
