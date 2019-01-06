@@ -1,28 +1,25 @@
 /**Author: Saar Weitzman
- * Date: 30.12.18
- * HTTP Client implementation
+ * I.D: 204175137
+ * Date: 31.12.18
+ * Ex2- HTTP Client Implementation
  * **/
 
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/wait.h>
-#include <pwd.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/ipc.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
 
-#define DEBUG
+//#define DEBUG
 #define ON 1
-#define BUFFER_SIZE 5000
+#define BUFFER_SIZE 1024
 #define USAGE "Usage: client [-p <text>] [-r n < pr1=value1 pr2=value2 …>] <URL>\r\n"
+#define MAX_PORT_NUM 65535
+#define MIN_PORT_NUM 0
 
 int check_if_post(char* str);
 int check_for_r(char* str);
@@ -42,8 +39,8 @@ int is_only_digits(char* str);
 int main(int argc, char* argv[])
 {
     int post_flag = 0, r_flag = 0, url_flag = 0, sockfd = 0;
-    int i, p_index = 0, r_index = 0, num_of_params = -1, counter = argc-1;
-    char* p_text = NULL, *params = NULL, *url, *request = NULL;
+    int i, r_index = 0, num_of_params = -1, counter = argc-1;
+    char* p_text = NULL, *params = NULL, *request = NULL;
     char** url_tokens_arr = NULL;
 
     for (i = 1; i < argc; i++)
@@ -56,8 +53,6 @@ int main(int argc, char* argv[])
                 free_program(post_flag, r_flag, p_text, params, url_tokens_arr, request);
                 exit(1);
             }
-
-            p_index = i;  //the index where -p is in argv
             i++;
 
             p_text = save_text_for_post(argv[i], r_flag, params, url_tokens_arr, request);
@@ -103,7 +98,7 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (find_url(argv[i]) != -1)
+        if (find_url(argv[i]) != -1 && strlen(argv[i]) > 7)
         {
 
             url_tokens_arr = split_url_to_tokens(argv[i], post_flag, r_flag, p_text, params, request);
@@ -132,9 +127,9 @@ int main(int argc, char* argv[])
         else  //it's a GET request
             request = get_request(url_tokens_arr, r_flag, params);
 
-        printf("HTTP request =\n%s\nLEN = %d\n", request, (int) strlen(request));
-
         sockfd = make_socket_connect(url_tokens_arr, post_flag, r_flag, p_text, params, request);
+
+        printf("HTTP request =\r\n%s\r\nLEN = %d\r\n", request, (int) strlen(request));
 
         char buffer[BUFFER_SIZE];
         bzero(buffer, BUFFER_SIZE);
@@ -149,7 +144,7 @@ int main(int argc, char* argv[])
 
         while(1)
         {
-            nbytes = (int)read(sockfd, buffer + sum, BUFFER_SIZE - sum);
+            nbytes = (int)read(sockfd, buffer, BUFFER_SIZE - 1);
             sum += nbytes;
 
             if (nbytes == 0)
@@ -159,15 +154,13 @@ int main(int argc, char* argv[])
                 perror("ERROR: cannot read from socket");
                 exit(1);
             }
+
+            printf("%s", buffer);
+            bzero(buffer, BUFFER_SIZE);  //clean the buffer
         }
-        printf("The Server Response =\r\n%s\r\n", buffer);
         printf("\r\n Total received response bytes: %d\r\n", sum);
 
         close(sockfd);
-
-        #if defined(DEBUG)
-        printf("we have -p at place %d , we have %s text after -p, and we have -r at place %d in the cmd input\r\n", p_index,p_text, r_index);
-        #endif
         free_program(post_flag, r_flag, p_text, params, url_tokens_arr, request);
     }
     else
@@ -247,7 +240,7 @@ char* save_text_for_post(char* text, int r_flag, char* params, char* url_tokens_
     strcpy(text_ptr, text);
 
     char* temp_ptr = text;
-    while(*temp_ptr != '\0')  //TODO check if need this while check loop
+    while(*temp_ptr != '\0')  //loop to check that we do not have a special character in the post
     {
         if (*temp_ptr == '/' || *temp_ptr == ':' || *temp_ptr == '?' || *temp_ptr == '&')
             {
@@ -257,7 +250,6 @@ char* save_text_for_post(char* text, int r_flag, char* params, char* url_tokens_
             }
         temp_ptr++;
     }
-
     return text_ptr;
 }
 
@@ -390,6 +382,34 @@ int make_socket_connect(char* url_tokens_arr[], int post_flag, int r_flag, char*
 
     serv_addr.sin_family = AF_INET;
 
+    #if defined(DEBUG)
+    int i = 0;
+    while(hp->h_addr_list[i] != NULL) {
+        printf("h_addr_list[i]: %s\n", inet_ntoa( (struct in_addr) *((struct in_addr *) hp->h_addr_list[i])));
+        i++;
+    }
+    #endif
+
+    if (is_only_digits(url_tokens_arr[1]) == -1)  // //give a non digits port because atoi takes off the non digits and give only the nums
+    {
+        printf(USAGE);
+        free_program(post_flag, r_flag, p_text, params, url_tokens_arr, request);
+        exit(1);
+    }
+
+    else
+    {
+        if (atoi(url_tokens_arr[1]) >= MIN_PORT_NUM && atoi(url_tokens_arr[1]) <= MAX_PORT_NUM)
+            serv_addr.sin_port = htons(atoi(url_tokens_arr[1]));   //htons function converts the unsigned short integer (the port) from host byte order to network byte order
+        else   //the input port is not in the range of possible ports
+        {
+            printf(USAGE);
+            free_program(post_flag, r_flag, p_text, params, url_tokens_arr, request);
+            exit(1);
+        }
+    }
+
+
     hp = gethostbyname(url_tokens_arr[0]);
     if (hp == NULL)
     {
@@ -400,22 +420,7 @@ int make_socket_connect(char* url_tokens_arr[], int post_flag, int r_flag, char*
 
     bcopy(hp->h_addr, &serv_addr.sin_addr, hp->h_length);
 
-    #if defined(DEBUG)
-    int i = 0;
-    while(hp->h_addr_list[i] != NULL) {
-        printf("h_addr_list[i]: %s\n", inet_ntoa( (struct in_addr) *((struct in_addr *) hp->h_addr_list[i])));
-        i++;
-    }
-    #endif
-
-    if (is_only_digits(url_tokens_arr[1]) == -1)
-        serv_addr.sin_port = htons(atoi("portHasNonDigitChar"));  //give a non digits port because atoi takes off the non digits and give only the nums
-    else
-        serv_addr.sin_port = htons(atoi(url_tokens_arr[1]));   //htons function converts the unsigned short integer (the port) from host byte order to network byte order
-
     serv_addr.sin_addr.s_addr = ((struct in_addr*)(hp->h_addr))->s_addr;
-
-    printf("host:%s\npath:%s\nport:%s\r\n\r\n",url_tokens_arr[0],url_tokens_arr[2],url_tokens_arr[1]);
 
     if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in)) < 0)      //initiate a connection on a socket
     {
@@ -505,16 +510,16 @@ char* post_request(char* url_tokens_arr[], char* text, int r_flag, char* params)
     if (r_flag == ON && params != NULL)
     {
         if (filePath != NULL)
-            sprintf(request_str, "POST /%s%s HTTP/1.0\r\nHost: %s\r\nContent-length:%d\r\n\r\n%s\r\n", filePath, params, hostName, (int)strlen(text), text);
+            sprintf(request_str, "POST /%s%s HTTP/1.0\r\nHost: %s\r\nContent-length:%d\r\n\r\n%s", filePath, params, hostName, (int)strlen(text), text);
         else
-            sprintf(request_str, "POST /%s HTTP/1.0\r\nHost: %s\r\nContent-length:%d\r\n\r\n%s\r\n", params, hostName, (int)strlen(text), text);
+            sprintf(request_str, "POST /%s HTTP/1.0\r\nHost: %s\r\nContent-length:%d\r\n\r\n%s", params, hostName, (int)strlen(text), text);
     }
     else
     {
         if (filePath != NULL)
-            sprintf(request_str, "POST /%s HTTP/1.0\r\nHost: %s\r\nContent-length:%d\r\n\r\n%s\r\n", filePath, hostName, (int)strlen(text), text);
+            sprintf(request_str, "POST /%s HTTP/1.0\r\nHost: %s\r\nContent-length:%d\r\n\r\n%s", filePath, hostName, (int)strlen(text), text);
         else
-            sprintf(request_str, "POST / HTTP/1.0\r\nHost: %s\r\nContent-length:%d\r\n\r\n%s\r\n", hostName, (int)strlen(text), text);
+            sprintf(request_str, "POST / HTTP/1.0\r\nHost: %s\r\nContent-length:%d\r\n\r\n%s", hostName, (int)strlen(text), text);
 
     }
     return request_str;
