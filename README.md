@@ -1,5 +1,3 @@
-Name of Student: Saar Weitzman
-
 HTTP Client
 
 -------------List of files------------
@@ -8,14 +6,6 @@ HTTP Client
 
 
 -------------Description-------------
-
-This program implements a data structure of an hash table, and the handling with collisions is done with linked lists.
-The hash table support these three operations: 1. Adding an element 2. Removing an element 3. Searching for an element.
-The hash table can be from the type of integers, or from the type of strings. Each type has little different implementation of the hash function.
-In this program we limit the size of the linked lists that can be made. In case there is an object that the hash function sends to a full linked
-list, the way this hash table deal with it is by duplicating the hash table size (i.e, expand the table).  
-In case of expansion, all the existed objects of the table in entries 0-(n-1) will be mapped to the respective even entries in the new hash table.
-
 
 This program implements an HTTP client that constructs an HTTP request based on user’s command line input, sends the request to a Web server,
 receives the reply from the server, and displays the reply message on screen (That program supports only IPv4 connections). This program can build
